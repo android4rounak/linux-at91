@@ -40,6 +40,11 @@ struct atmel_hlcd_dma_desc {
 	u32	next;
 };
 
+extern unsigned int base_frame_update_done;
+extern spinlock_t lock;
+extern wait_queue_head_t wait;
+
+
 static void atmel_hlcdfb_update_dma_base(struct fb_info *info,
 
 			       struct fb_var_screeninfo *var)
@@ -368,7 +373,8 @@ static int atmel_hlcdfb_setup_core_base(struct fb_info *info)
 	lcdc_writel(sinfo, ATMEL_LCDC_LCDIDR, ~0UL);
 	lcdc_writel(sinfo, ATMEL_LCDC_BASEIDR, ~0UL);
 	/* Enable BASE LAYER overflow interrupts, if want to enable DMA interrupt, also need set it at LCDC_BASECTRL reg */
-	lcdc_writel(sinfo, ATMEL_LCDC_BASEIER, LCDC_BASEIER_OVR );
+	lcdc_writel(sinfo, ATMEL_LCDC_BASEIER, LCDC_BASEIER_OVR
+		| LCDC_BASEISR_DMA | LCDC_BASEISR_DSCR);
 	//FIXME: Let video-driver register a callback
 	lcdc_writel(sinfo, ATMEL_LCDC_LCDIER, 
 		LCDC_BASEISR_DMA | LCDC_LCDIER_FIFOERRIE | LCDC_LCDIER_BASEIE );
@@ -477,6 +483,17 @@ static irqreturn_t atmel_hlcdfb_interrupt(int irq, void *dev_id)
 		if (baselayer_status & LCDC_BASEISR_OVR)
 			dev_warn(info->device, "base layer overflow %#x\n",
 						baselayer_status);
+		else if (baselayer_status & LCDC_BASEISR_DMA) {
+			spin_lock_irqsave(&lock, irq_saved);
+			base_frame_update_done = 1;
+			wake_up(&wait);
+			spin_unlock_irqrestore(&lock, irq_saved);
+		} else if (baselayer_status & LCDC_BASEISR_DSCR) {
+			spin_lock_irqsave(&lock, irq_saved);
+			base_frame_update_done = 0;
+			spin_unlock_irqrestore(&lock, irq_saved);
+			spin_unlock_irqrestore(&lock, irq_saved);
+		}
 	}
 
 	return IRQ_HANDLED;

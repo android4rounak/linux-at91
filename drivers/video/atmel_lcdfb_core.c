@@ -88,6 +88,11 @@ static void exit_backlight(struct atmel_lcdfb_info *sinfo)
 #endif
 
 #ifdef CONFIG_ANDROID
+
+unsigned int base_frame_update_done = 1;
+spinlock_t lock;
+wait_queue_head_t wait;
+
 static int lcdc_is_fb_changed(struct fb_info *info)
 {
 	struct atmel_lcdfb_info *sinfo = info->par;
@@ -569,6 +574,14 @@ static int atmel_lcdfb_pan_display(struct fb_var_screeninfo *var,
 	desc->address = dma_addr;
 	/* Disable DMA transfer interrupt & descriptor loaded interrupt. */
 	desc->next = sinfo->dma_desc_phys;
+
+	if (!strncmp(info->fix.id, "atmel_hlcdfb_bas", 16)) {
+		/* 24 frame per second is the lowest limit of the human eye,
+		(1000/24)ms is the maximum delay time */
+		wait_event_timeout(wait, base_frame_update_done, msecs_to_jiffies(1000 / 24));
+		if (!base_frame_update_done)
+			dev_dbg(info->device, "no vsync detected: base %d\n", base_frame_update_done);
+	}
 	
 #else
 	sinfo->dev_data->update_dma(info, var);
@@ -759,6 +772,9 @@ int __atmel_lcdfb_probe(struct platform_device *pdev,
 	int ret;
 
 	dev_dbg(dev, "%s BEGIN\n", __func__);
+
+	spin_lock_init(&lock);
+	init_waitqueue_head(&wait);
 
 	ret = -ENOMEM;
 	info = framebuffer_alloc(sizeof(struct atmel_lcdfb_info), dev);

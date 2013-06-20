@@ -543,9 +543,9 @@ static int atmel_hlcdfb_resume(struct platform_device *pdev)
 
 	/* Enable fifo error & BASE LAYER overflow interrupts */
 	lcdc_writel(sinfo, ATMEL_LCDC_BASEIER, LCDC_BASEIER_OVR
-					| LCDC_BASEIER_DMA);
-	lcdc_writel(sinfo, ATMEL_LCDC_LCDIER, LCDC_LCDIER_FIFOERRIE
-		| LCDC_LCDIER_BASEIE | LCDC_LCDIER_HEOIE);
+					| LCDC_BASEIER_DMA | LCDC_BASEISR_DSCR);
+	lcdc_writel(sinfo, ATMEL_LCDC_LCDIER, LCDC_BASEISR_DMA | 
+		LCDC_LCDIER_FIFOERRIE | LCDC_LCDIER_BASEIE);
 
 	lcdc_writel(sinfo, ATMEL_LCDC_BASECHER, LCDC_BASECHER_CHEN);
 

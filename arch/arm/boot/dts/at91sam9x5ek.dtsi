@@ -64,6 +64,10 @@
 						atmel,pins =
 							<0 13 0x0 0x0>; /* PA13 gpio, conflicted with SPI0_SPCK, MCI1_CK */
 					};
+					pinctrl_usba_vbus: usba_vbus {
+						atmel,pins =
+							<1 16 0x0 0x4>; /* PB16 GPIO with deglitch */
+					};
 				};
 			};
 
@@ -126,6 +130,13 @@
 		};
 
 		usb1: ehci@00700000 {
+			status = "okay";
+		};
+
+		usb2: gadget@00500000 {
+			atmel,vbus-gpio = <&pioB 16 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "okay";
 		};
 	};
